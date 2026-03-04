@@ -1,19 +1,17 @@
 openapi: 3.0.3
 info:
-  title: Creative Access API
+  title: Creasoft HR API
   description: |
-    CreativeAccess API is a collection of RESTful APIs for building access-based applications.
+    Creasoft HR API is a collection of RESTful APIs for building access-based applications.
     
     All datetime members in request and response objects use E. Europe Standard Time timezone.
-    
-    The authentication token obtained via Login expires in 30 minutes.
   version: 1.0.0
   contact:
     name: Creasoft IT
 
 servers:
-  - url: https://wifi.creasoft.ro/api
-    description: Production server
+  - url: https://testwifi.creasoft.ro/api
+    description: Test server
 
 security:
   - BearerAuth: []

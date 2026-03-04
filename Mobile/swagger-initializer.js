@@ -3,7 +3,10 @@ window.onload = function() {
 
   // the following lines will be replaced by docker/configurator, when it runs in a docker-container
   window.ui = SwaggerUIBundle({
-    url: "creative-access-openapi.yaml",
+    urls: [
+      { url: "specs/creasoft-hr-mobile-openapi.yaml", name: "Production" },
+      { url: "specs/creasoft-hr-mobile-openapi-test.yaml", name: "Test" }
+    ],
     dom_id: '#swagger-ui',
     deepLinking: true,
     presets: [

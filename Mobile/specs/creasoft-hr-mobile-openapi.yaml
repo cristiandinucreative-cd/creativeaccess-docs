@@ -1,0 +1,2453 @@
+openapi: 3.0.3
+info:
+  title: Creasoft HR API
+  description: |
+    Creasoft HR API is a collection of RESTful APIs for building access-based applications.
+    
+    All datetime members in request and response objects use E. Europe Standard Time timezone.
+  version: 1.0.0
+  contact:
+    name: Creasoft IT
+
+servers:
+  - url: https://wifi.creasoft.ro/api
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Account
+    description: Authentication methods
+  - name: Reports
+    description: Obtain reports in JSON format (Base reports / Theoretical reports permission required)
+  - name: Observations
+    description: Manage observations in JSON format
+  - name: Department
+    description: Manage departments
+  - name: Work Schedule
+    description: Manage work schedules
+  - name: RFID (DEPRECATED)
+    description: "Manage RFID cards. DEPRECATED - use Employee endpoints instead"
+  - name: RFIDAccess
+    description: Manage access codes
+  - name: Employee
+    description: Manage employees
+  - name: Vacation
+    description: Manage vacations
+  - name: VacationRequest
+    description: Manage vacation requests
+  - name: Area
+    description: Manage areas
+  - name: Document
+    description: Manage electronic documents and signatures
+
+paths:
+  # ============================================================
+  # ACCOUNT
+  # ============================================================
+  /account:
+    post:
+      tags: [Account]
+      summary: Login
+      description: Obtain the bearer token required to access the system. Token expires in 30 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  description: The e-mail of the user
+                  example: tst@tst.com
+                password:
+                  type: string
+                  description: The password of the user
+                  example: tst
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Generated bearer token
+                    example: "t-OGi-wxY1-UbR-o6MPVodtiuL4umASELJAXB91IjGnsNqJjnZ1Tj..."
+        '400':
+          description: Login failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+
+  # ============================================================
+  # REPORTS
+  # ============================================================
+  /reports/events:
+    post:
+      tags: [Reports]
+      summary: Events
+      description: |
+        Retrieve the event list in the period provided. Max period is 1 day.
+        
+        Requires `Base reports` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start, end]
+              properties:
+                start:
+                  type: string
+                  format: date
+                  description: Start date of the report interval
+                  example: "2017-10-25"
+                end:
+                  type: string
+                  format: date
+                  description: End date of the report interval
+                  example: "2017-10-26"
+                excludeAccessOnlyDevices:
+                  type: boolean
+                  description: Exclude events from access-only devices
+                  example: false
+      responses:
+        '200':
+          description: Event list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    description: Total number of events retrieved
+                    example: 1
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventItem'
+        '400':
+          description: Bad request (e.g. period exceeds 1 day)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+
+  /reports/worksheet:
+    post:
+      tags: [Reports]
+      summary: Worksheet
+      description: |
+        Retrieve worksheet details for a single day.
+        
+        Requires `Base reports` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Report date
+                  example: "2019-06-24"
+                cardId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Filter by card ID
+                departmentId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Filter by department ID
+                roundResults:
+                  type: boolean
+                  description: Whether results should be rounded
+                  example: false
+      responses:
+        '200':
+          description: Worksheet data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 1
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorksheetItem'
+
+  /reports/worksheetPeriod:
+    post:
+      tags: [Reports]
+      summary: Worksheet Period
+      description: |
+        Retrieve worksheet details for a period of maximum 31 days.
+        
+        Requires `Base reports` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, dateEnd]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Report start date
+                  example: "2019-06-24"
+                dateEnd:
+                  type: string
+                  format: date
+                  description: Report end date
+                  example: "2019-06-25"
+                cardId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Filter by card ID
+                departmentId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Filter by department ID
+                roundResults:
+                  type: boolean
+                  description: Whether results should be rounded
+                  example: false
+      responses:
+        '200':
+          description: Worksheet period data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 2
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date-time
+                          description: Day for the current data
+                          example: "2019-06-24T00:00:00"
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/WorksheetItem'
+
+  /reports/collective_worksheet:
+    post:
+      tags: [Reports]
+      summary: Collective Worksheet
+      description: |
+        Retrieve collective worksheet details for a selected month.
+        
+        Requires `Base reports` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - date
+                - displayAdjustedHours
+                - includeTheoreticalScheduleUntillRestOfMonth
+                - includeTheoreticalForEmptyEmployees
+                - includeFullOvertime
+                - roundToHours
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Month for the report
+                  example: "2024-06-24"
+                displayAdjustedHours:
+                  type: boolean
+                  description: Add hours to real time to reach work quota
+                  example: true
+                includeTheoreticalScheduleUntillRestOfMonth:
+                  type: boolean
+                  description: Add theoretical attendance until end of month
+                  example: true
+                includeTheoreticalForEmptyEmployees:
+                  type: boolean
+                  description: Add theoretical attendance for employees without attendance
+                  example: true
+                minimumRequiredWorkingTime:
+                  type: integer
+                  nullable: true
+                  description: Minimum daily actual working time in minutes (values below are ignored)
+                  example: 0
+                includeFullOvertime:
+                  type: boolean
+                  description: Add unapproved overtime to actual working time
+                  example: true
+                roundToHours:
+                  type: boolean
+                  description: Round results to hours without minutes
+                  example: false
+      responses:
+        '200':
+          description: Collective worksheet data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectiveWorksheetItem'
+
+  /reports/collective_worksheet_default:
+    post:
+      tags: [Reports]
+      summary: Collective Worksheet Default
+      description: |
+        Retrieve collective worksheet using saved tenancy configurations. If no configs are saved, defaults are used.
+        
+        Requires `Base reports` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Month for the report
+                  example: "2024-06-24"
+      responses:
+        '200':
+          description: Collective worksheet data with default settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectiveWorksheetItem'
+
+  /reports/monthly_normal_time:
+    post:
+      tags: [Reports]
+      summary: Monthly Normal Time
+      description: |
+        Retrieve the normal working time for a given month.
+        
+        Requires `Base reports` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [month]
+              properties:
+                month:
+                  type: string
+                  format: date
+                  description: Month for the report
+                  example: "2025-06-01"
+      responses:
+        '200':
+          description: Normal time retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  normalTime:
+                    type: integer
+                    description: Normal time in hours for the requested month
+                    example: 160
+
+  /reports/theoretical_worksheet:
+    post:
+      tags: [Reports]
+      summary: Theoretical Worksheet
+      description: |
+        Retrieve theoretical worksheet details for a single day.
+        
+        Requires `Theoretical reports` permission.
+        
+        Report types:
+        - 1: Real working hours displayed, starting with real arrival time, accounting for official breaks
+        - 2: Work schedule displayed if employee has at least one timing event
+        - 3: Standard hours of work schedule displayed if employee has at least one timekeeping event, starting with actual arrival
+        - 4: Work schedule displayed for all employees not on vacation or delegates
+        - 5: Work schedule displayed based on planned schedules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, reportType, minuteStart, minuteEnd, breakInMinutes]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Report date
+                  example: "2019-06-24"
+                reportType:
+                  type: integer
+                  enum: [1, 2, 3, 4, 5]
+                  description: "Report type (1-5)"
+                  example: 1
+                minuteStart:
+                  type: integer
+                  description: Start of default work schedule in minutes for flexible/uneven schedule
+                  example: 480
+                minuteEnd:
+                  type: integer
+                  description: End of default work schedule in minutes for flexible/uneven schedule
+                  example: 960
+                breakInMinutes:
+                  type: integer
+                  description: Break of default work schedule in minutes for flexible/uneven schedule
+                  example: 60
+                cardId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Filter by card ID
+                departmentId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Filter by department ID
+      responses:
+        '200':
+          description: Theoretical worksheet data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 1
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorksheetItem'
+
+  /reports/areas_activity:
+    post:
+      tags: [Reports]
+      summary: Areas Activity
+      description: Retrieve time spent in areas for the provided day.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Day of the report
+                  example: "2017-10-25"
+      responses:
+        '200':
+          description: Areas activity data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 1
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AreaActivityItem'
+
+  # ============================================================
+  # OBSERVATIONS
+  # ============================================================
+  /observations/setDayObservation:
+    post:
+      tags: [Observations]
+      summary: Set Day Observation
+      description: |
+        Sets an observation for the provided day.
+        
+        Requires `Base reports` permission. For vacation observations, also requires `Pages Config Vacations` permission.
+        
+        Observation IDs that CANNOT be used here: 11 (PM), 108 (MD), 109 (TM).
+        
+        Some observations require a start-end minute interval: 11 (PM), 108 (MD), 109 (TM), 204 (InvP), 205 (InvR), 206 (InvFP).
+        
+        See the observation IDs list in the schema description.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [day, cardIds]
+              properties:
+                info:
+                  type: integer
+                  nullable: true
+                  description: "Observation ID (null to cancel current observation). See ObservationId enum."
+                  example: 1
+                day:
+                  type: string
+                  format: date
+                  description: Date for observation
+                  example: "2024-08-07"
+                cardIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: List of card IDs
+                  example: ["a357a164-cfdc-4355-ad80-324e67ff9d28"]
+                startMinute:
+                  type: integer
+                  nullable: true
+                  description: Start minute of observation interval (required for some observation types)
+                endMinute:
+                  type: integer
+                  nullable: true
+                  description: End minute of observation interval (required for some observation types)
+                observations:
+                  type: string
+                  nullable: true
+                  description: Comment for observation
+      responses:
+        '204':
+          description: Observation set successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /observations/setManualTimesheet:
+    post:
+      tags: [Observations]
+      summary: Set Manual Timesheet
+      description: |
+        Sets a manual clocking interval for the provided day.
+        
+        Requires `Timesheet Override` permission.
+        
+        Valid observation IDs: null (cancel), 11 (PM), 108 (MD), 109 (TM).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cardIds, day, startMinute, endMinute]
+              properties:
+                info:
+                  type: integer
+                  nullable: true
+                  description: "Manual clocking observation ID. null=cancel, 11=PM, 108=MD, 109=TM"
+                  example: 11
+                cardIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: List of card IDs
+                  example: ["a357a164-cfdc-4355-ad80-324e67ff9d28"]
+                day:
+                  type: string
+                  format: date
+                  description: Date for manual clocking
+                  example: "2024-08-07"
+                startMinute:
+                  type: integer
+                  nullable: true
+                  description: Start minute of the manual clocking interval
+                endMinute:
+                  type: integer
+                  nullable: true
+                  description: End minute of the manual clocking interval
+                observations:
+                  type: string
+                  nullable: true
+                  description: Comment for manual clocking
+      responses:
+        '204':
+          description: Manual timesheet set successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================
+  # DEPARTMENT
+  # ============================================================
+  /department:
+    get:
+      tags: [Department]
+      summary: Department List
+      description: |
+        Retrieve the list of departments for the current company.
+        
+        Requires `Configuration-Departments` permission.
+      responses:
+        '200':
+          description: Department list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 2
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DepartmentItem'
+
+  # ============================================================
+  # WORK SCHEDULE
+  # ============================================================
+  /workschedule:
+    get:
+      tags: [Work Schedule]
+      summary: Work Schedule List
+      description: |
+        Retrieve the list of work schedules for the current company.
+        
+        Requires `Configuration-Time Schedules` permission.
+      responses:
+        '200':
+          description: Work schedule list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 2
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkScheduleItem'
+
+  # ============================================================
+  # RFID (DEPRECATED)
+  # ============================================================
+  /rfid:
+    get:
+      tags: [RFID (DEPRECATED)]
+      summary: Cards List
+      description: "Retrieve the RFID cards list. DEPRECATED - use Employee endpoints instead."
+      deprecated: true
+      responses:
+        '200':
+          description: Cards list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 2
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RFIDCardItem'
+
+  /RFIDManage/create:
+    post:
+      tags: [RFID (DEPRECATED)]
+      summary: Create RFID Card
+      description: |
+        Add an employee with (or without) card access. DEPRECATED - use Employee endpoints instead.
+        
+        Requires `Configuration-Employees/RFID cards` permission.
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RFIDCreateUpdateRequest'
+      responses:
+        '200':
+          description: Employee created successfully
+
+  /RFIDManage/update:
+    put:
+      tags: [RFID (DEPRECATED)]
+      summary: Update RFID Card
+      description: |
+        Update an employee information. DEPRECATED - use Employee endpoints instead.
+        
+        Requires `Configuration-Employees/RFID cards` permission.
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      description: Employee ID
+                      example: "1139bbef-d34d-415c-9bbe-37bab01f2806"
+                - $ref: '#/components/schemas/RFIDCreateUpdateRequest'
+      responses:
+        '200':
+          description: Employee updated successfully
+
+  /RFIDManage/delete:
+    delete:
+      tags: [RFID (DEPRECATED)]
+      summary: Delete RFID Card
+      description: |
+        Delete an employee. DEPRECATED - use Employee endpoints instead.
+        
+        Requires `Configuration-Employees/RFID cards` permission.
+      deprecated: true
+      parameters:
+        - name: cardId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Card ID to delete
+          example: "FFBE75AB-381C-496B-A2D1-985E55D7F1DC"
+      responses:
+        '200':
+          description: Employee deleted
+
+  /RFIDManage/suspend:
+    post:
+      tags: [RFID (DEPRECATED)]
+      summary: Suspend RFID Card
+      description: |
+        Suspend an employee. DEPRECATED - use Employee endpoints instead.
+        
+        Requires `Configuration-Employees/RFID cards` permission.
+      deprecated: true
+      parameters:
+        - name: cardId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Card ID to suspend
+          example: "FFBE75AB-381C-496B-A2D1-985E55D7F1DC"
+      responses:
+        '200':
+          description: Employee suspended
+
+  # ============================================================
+  # RFID ACCESS
+  # ============================================================
+  /RFIDAccess:
+    get:
+      tags: [RFIDAccess]
+      summary: Get Access Codes
+      description: |
+        Retrieve the access codes list for a device.
+        
+        Requires `Config-RFID Tags` permission.
+      parameters:
+        - name: deviceId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Device ID
+          example: "ffbe75ab-381c-496b-a2d1-985e55d7f1dc"
+      responses:
+        '200':
+          description: Access codes list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RFIDAccessItem'
+
+    post:
+      tags: [RFIDAccess]
+      summary: Assign Access Code
+      description: |
+        Assign an access code to a device.
+        
+        Requires `Config-RFID Tags` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start, end, codeId, deviceId]
+              properties:
+                start:
+                  type: string
+                  format: date-time
+                  description: Start date for the code
+                  example: "2018-01-01T07:38:56.8"
+                end:
+                  type: string
+                  format: date-time
+                  description: End date for the code
+                  example: "2018-12-20T07:38:56.8"
+                codeId:
+                  type: string
+                  format: uuid
+                  description: Unique identifier for the code
+                  example: "F739EAB4-0B77-40DA-B855-020981262047"
+                deviceId:
+                  type: string
+                  format: uuid
+                  description: Unique identifier for the device
+                  example: "ffbe75ab-381c-496b-a2d1-985e55d7f1dc"
+      responses:
+        '200':
+          description: Code assigned successfully
+
+    delete:
+      tags: [RFIDAccess]
+      summary: Delete Access Code
+      description: |
+        Delete a code from a device.
+        
+        Requires `Config-RFID Tags` permission.
+      parameters:
+        - name: deviceId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Device ID
+          example: "FFBE75AB-381C-496B-A2D1-985E55D7F1DC"
+        - name: codeId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Code ID to delete
+          example: "4B0D069D-EDA9-444D-A4D1-F42A8F17D6A7"
+      responses:
+        '200':
+          description: Code deleted
+
+  # ============================================================
+  # EMPLOYEE
+  # ============================================================
+  /employee/getAll:
+    get:
+      tags: [Employee]
+      summary: Get All Employees
+      description: Retrieve the employees list.
+      responses:
+        '200':
+          description: Employees list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 200
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmployeeItem'
+
+  /employee/get:
+    get:
+      tags: [Employee]
+      summary: Get Employee
+      description: Retrieve an employee based on ID.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Employee ID
+          example: "FFBE75AB-381C-496B-A2D1-985E55D7F1DC"
+      responses:
+        '200':
+          description: Employee details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetailItem'
+
+  /employee/create:
+    post:
+      tags: [Employee]
+      summary: Create Employee
+      description: |
+        Add an employee with (or without) card access.
+        
+        Requires `Configuration-Employees` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreateUpdateRequest'
+      responses:
+        '200':
+          description: Employee created successfully
+
+  /employee/update:
+    put:
+      tags: [Employee]
+      summary: Update Employee
+      description: |
+        Update an employee's information.
+        
+        Requires `Configuration-Employees` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      description: Employee ID
+                      example: "1139bbef-d34d-415c-9bbe-37bab01f2806"
+                - $ref: '#/components/schemas/EmployeeCreateUpdateRequest'
+      responses:
+        '200':
+          description: Employee updated
+
+  /employee/delete:
+    delete:
+      tags: [Employee]
+      summary: Delete Employee
+      description: |
+        Delete an employee from the system.
+        
+        Requires `Configuration-Employees` permission.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Employee ID
+          example: "FFBE75AB-381C-496B-A2D1-985E55D7F1DC"
+      responses:
+        '200':
+          description: Employee deleted
+
+  /employee/suspend:
+    post:
+      tags: [Employee]
+      summary: Suspend Employee
+      description: |
+        Suspend an employee.
+        
+        Requires `Configuration-Employees` permission.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Employee ID
+          example: "FFBE75AB-381C-496B-A2D1-985E55D7F1DC"
+      responses:
+        '200':
+          description: Employee suspended
+
+  # ============================================================
+  # VACATION
+  # ============================================================
+  /vacation/vacationsList:
+    post:
+      tags: [Vacation]
+      summary: Vacations List
+      description: |
+        Retrieve the vacations list.
+        
+        Requires `Configuration-Vacations` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDate, endDate]
+              properties:
+                startDate:
+                  type: string
+                  format: date-time
+                  description: Start of report interval
+                  example: "2018-01-01T00:00:00"
+                endDate:
+                  type: string
+                  format: date-time
+                  description: End of report interval
+                  example: "2018-01-31T00:00:00"
+      responses:
+        '200':
+          description: Vacations list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                    example: 200
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VacationItem'
+
+  /vacation/get:
+    get:
+      tags: [Vacation]
+      summary: Get Vacation
+      description: Retrieve a vacation by ID.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Vacation ID
+          example: "29d4c715-57d1-4eef-bb76-5544a85beddb"
+      responses:
+        '200':
+          description: Vacation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VacationItem'
+
+  /vacation/create:
+    post:
+      tags: [Vacation]
+      summary: Create Vacation
+      description: |
+        Create a new vacation entry.
+        
+        Requires `Configuration-Vacations` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VacationCreateUpdateRequest'
+      responses:
+        '200':
+          description: Vacation created
+
+  /vacation/update:
+    put:
+      tags: [Vacation]
+      summary: Update Vacation
+      description: |
+        Update an existing vacation entry.
+        
+        Requires `Configuration-Vacations` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      description: Vacation ID
+                - $ref: '#/components/schemas/VacationCreateUpdateRequest'
+      responses:
+        '200':
+          description: Vacation updated
+
+  /vacation/delete:
+    delete:
+      tags: [Vacation]
+      summary: Delete Vacation
+      description: |
+        Delete a vacation entry.
+        
+        Requires `Configuration-Vacations` permission.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Vacation ID
+          example: "29d4c715-57d1-4eef-bb76-5544a85beddb"
+      responses:
+        '200':
+          description: Vacation deleted
+
+  # ============================================================
+  # VACATION REQUEST
+  # ============================================================
+  /VacationRequest/vacationRequestsList:
+    post:
+      tags: [VacationRequest]
+      summary: Vacation Requests List
+      description: Retrieve the vacation requests list for a given period.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDate, endDate]
+              properties:
+                startDate:
+                  type: string
+                  format: date-time
+                  description: Start of report interval
+                  example: "2018-01-01T00:00:00"
+                endDate:
+                  type: string
+                  format: date-time
+                  description: End of report interval
+                  example: "2018-01-31T00:00:00"
+      responses:
+        '200':
+          description: Vacation requests list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VacationRequestItem'
+
+  /VacationRequest/approve:
+    post:
+      tags: [VacationRequest]
+      summary: Approve Vacation Request
+      description: Approve a vacation request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: Vacation request ID to approve
+      responses:
+        '200':
+          description: Request approved
+
+  /VacationRequest/deny:
+    post:
+      tags: [VacationRequest]
+      summary: Deny Vacation Request
+      description: Deny a vacation request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: Vacation request ID to deny
+                reason:
+                  type: string
+                  description: Reason for denial
+      responses:
+        '200':
+          description: Request denied
+
+  # ============================================================
+  # AREA
+  # ============================================================
+  /area/getall:
+    get:
+      tags: [Area]
+      summary: Area List
+      description: Retrieve the list of all areas.
+      responses:
+        '200':
+          description: Area list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AreaItem'
+
+  # ============================================================
+  # DOCUMENT
+  # ============================================================
+  /document/create:
+    post:
+      tags: [Document]
+      summary: Create Document
+      description: |
+        Create a new document for electronic signing.
+        
+        Requires `Electronic Signatures` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCreateRequest'
+      responses:
+        '200':
+          description: Document created
+
+  /document/get:
+    post:
+      tags: [Document]
+      summary: Get Documents
+      description: |
+        Retrieve documents list.
+        
+        Requires `Electronic Signatures` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                  format: date-time
+                  description: Start date filter
+                endDate:
+                  type: string
+                  format: date-time
+                  description: End date filter
+                status:
+                  type: integer
+                  description: "Document status filter (0-7)"
+      responses:
+        '200':
+          description: Documents list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentItem'
+
+  /document/cancel:
+    post:
+      tags: [Document]
+      summary: Cancel Document
+      description: |
+        Cancel a document.
+        
+        Requires `Electronic Signatures` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: Document ID to cancel
+      responses:
+        '200':
+          description: Document cancelled
+
+  /document/DownloadFiles:
+    post:
+      tags: [Document]
+      summary: Download Document Files
+      description: |
+        Download files associated with a document.
+        
+        Requires `Electronic Signatures` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: Document ID
+      responses:
+        '200':
+          description: Document files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    fileName:
+                      type: string
+                      description: File name
+                    encodedData:
+                      type: string
+                      description: Base64-encoded file content
+
+# ============================================================
+# COMPONENTS
+# ============================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: "Bearer token obtained via /account POST. Expires in 30 minutes."
+
+  schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Login esuat! Utilizator sau parola invalide"
+
+    ErrorResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          example: "Invalid card id: a357a164-cfdc-4355-ad80-324e67ff9d28"
+
+    EventItem:
+      type: object
+      properties:
+        timeStamp:
+          type: string
+          format: date-time
+          description: Event occurrence in local time (EEST)
+          example: "2017-10-25T07:38:56.8"
+        deviceId:
+          type: string
+          format: uuid
+          description: Device GUID
+          example: "40daf20c-e8bc-4e7d-9167-0558cff87017"
+        deviceName:
+          type: string
+          description: Device name
+          example: "Access Usa Principala"
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Card GUID
+          example: "f12c92c8-e56a-4023-a109-fd72051defd2"
+        cardName:
+          type: string
+          nullable: true
+          description: Card owner name
+          example: "Adrian Popescu"
+        cardTag:
+          type: string
+          nullable: true
+          description: Card serial in hexadecimal
+          example: "CA12BD"
+        cardSerialDecimal:
+          type: string
+          nullable: true
+          description: Card serial in decimal
+          example: "13243069"
+        eventCode:
+          type: integer
+          description: |
+            Event code (0-52):
+            0=Door open, 1=Door closed, 2=Door opened with button,
+            3=Door opened - card accepted, 4=Card rejected,
+            5=Fire alarm door opened, 6=Fire alarm ended,
+            7=Clock sync, 8=Forced opening, 9=Tamper start, 10=Tamper end,
+            11=Door opened - fingerprint, 12=Fingerprint rejected,
+            13=Learn fingerprint, 14=Device communication restored,
+            15=Power outage/WIFI disconnected, 16=External tamper start,
+            17=External power supply off, 18=External power supply on,
+            19=Low WiFi signal, 20=Device software version,
+            21=Mobile location clocking, 31=POI event (not in reports),
+            32=PC Activity, 33=Extra PC Activity (not in reports),
+            34=Manual clocking event,
+            37=Remote arming, 38=Remote disarming,
+            39=Arming with code, 40=Disarming with code,
+            41=Autoarming, 42=Autodisarming,
+            43-45=Arming failed (various zones),
+            46-48=Efraction/sabotage alarms,
+            49-52=QR BLE reader reconnect/disconnect events
+          example: 3
+        event:
+          type: string
+          description: Localized event description
+          example: "Deschidere usa cu card"
+        actionCode:
+          type: integer
+          nullable: true
+          description: "Action code: 0=Enter, 1=Exit, 2=No zones configured"
+          example: 0
+        action:
+          type: string
+          description: Localized action description
+          example: "Intrare in "
+        areaId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Area GUID
+          example: "957e99b8-a6d0-4dfa-899b-0558cf51defd2"
+        areaName:
+          type: string
+          nullable: true
+          description: Area name
+          example: "Culoar Exterior"
+        previousAreaId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Previous area GUID
+        previousAreaName:
+          type: string
+          nullable: true
+          description: Previous area name
+        alarmCodeIndex:
+          type: integer
+          nullable: true
+          description: Alarm code index (starts from 0, set for alarm events)
+
+    WorksheetItem:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: Card index (alphabetically sorted)
+          example: 16
+        displayName:
+          type: string
+          description: Card owner full name
+          example: "Negoita Ionut"
+        cardId:
+          type: string
+          format: uuid
+          example: "a357a164-cfdc-4355-ad80-324e67ff9d28"
+        departmentId:
+          type: string
+          format: uuid
+          nullable: true
+          example: "a357a164-cfdc-4355-ad80-324e67ff9d30"
+        departmentName:
+          type: string
+          nullable: true
+          example: "Departament Vanzari"
+        mark:
+          type: string
+          nullable: true
+          description: Associated mark number
+          example: "12345"
+        date:
+          type: string
+          format: date-time
+          example: "2019-06-24T00:00:00"
+        scheduleStart:
+          type: string
+          format: date-time
+          nullable: true
+          description: Schedule start time
+        scheduleEnd:
+          type: string
+          format: date-time
+          nullable: true
+          description: Schedule end time
+        scheduleFixed:
+          type: boolean
+          description: Whether the work schedule is fixed
+        scheduleBreakInMin:
+          type: number
+          description: Schedule break in minutes
+          example: 0
+        scheduleFlexibleInMin:
+          type: number
+          nullable: true
+          description: Flexible schedule time in minutes
+          example: 480
+        requiredWorkingInMin:
+          type: number
+          description: Required working time in minutes
+          example: 480
+        totalTimeInMin:
+          type: number
+          nullable: true
+          description: Total time in minutes (end - start)
+          example: 536.25
+        workTimeInMin:
+          type: number
+          nullable: true
+          description: Work time in minutes
+          example: 480
+        breakTimeInMin:
+          type: number
+          nullable: true
+          description: Break time in minutes
+          example: 56.25
+        nightTimeInMin:
+          type: number
+          nullable: true
+          description: Night work time in minutes
+          example: 100
+        approvedOvertimeInMin:
+          type: number
+          description: Approved overtime in minutes
+          example: 0
+        notApprovedOvertimeInMin:
+          type: number
+          description: Not approved overtime in minutes
+          example: 11.55
+        start:
+          type: string
+          format: date-time
+          nullable: true
+          description: Arrival timestamp
+          example: "2019-06-24T07:36:04.1"
+        end:
+          type: string
+          format: date-time
+          nullable: true
+          description: Leaving timestamp
+          example: "2019-06-24T16:32:18.9"
+        obs:
+          type: string
+          description: "Short observation (dash if none)"
+          example: "CO"
+        obsInfo:
+          type: string
+          description: "Observation text (dash if none)"
+          example: "concediu odihna"
+        obsId:
+          type: integer
+          nullable: true
+          description: Observation ID
+          example: 1
+        isLegalVacation:
+          type: boolean
+          description: Whether the day is a legal holiday
+          example: false
+
+    CollectiveWorksheetItem:
+      type: object
+      properties:
+        employeeId:
+          type: string
+          format: uuid
+          example: "aftt897-2234-4a6a-9dbf-606c2564d6ea"
+        employeeMark:
+          type: string
+          example: "323945"
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+        totalWorkingInMinutes:
+          type: number
+          description: Real time worked in minutes
+          example: 10975.51
+        totalNormalTime:
+          type: number
+          description: Expected daily working time in minutes
+          example: 9600.0
+        totalClockedDaysCount:
+          type: integer
+          description: Number of clocked days
+          example: 21
+        totalWeekDayInMinutes:
+          type: number
+          description: Weekday daytime worked minutes
+          example: 9575.28
+        totalWeekDayNightInMinutes:
+          type: number
+          description: Weekday nighttime worked minutes
+          example: 0.0
+        totalWeekendInMinutes:
+          type: number
+          description: Weekend daytime worked minutes
+          example: 24.72
+        totalWeekendNightInMinutes:
+          type: number
+          description: Weekend nighttime worked minutes
+          example: 0.0
+        overtimeInMinutes:
+          type: number
+          description: Total overtime from all categories
+          example: 1375.51
+        totalWeekDayOvertimeInMinutes:
+          type: number
+          example: 1375.51
+        totalWeekDayNightOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalWeekendOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalWeekendNightOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalLegalVacationWeekDayOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalLegalVacationWeekDayNightOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalLegalVacationWeekendOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalLegalVacationWeekendNightOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalBonusOvertimeInMinutes:
+          type: number
+          example: 0.0
+        totalMealTicketsCount:
+          type: integer
+          description: Meal tickets for the period
+          example: 21
+        vacationsAndLeaves:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                description: Observation code
+                example: 1
+              daysCount:
+                type: integer
+                description: Number of days with this observation
+                example: 5
+              name:
+                type: string
+                description: Observation name
+                example: "CO"
+
+    AreaActivityItem:
+      type: object
+      properties:
+        cardId:
+          type: string
+          format: uuid
+          example: "d0636b94-4197-408e-ba26-a87290eb5e63"
+        cardName:
+          type: string
+          example: "Adrian P."
+        mark:
+          type: string
+          example: "345344"
+        areaList:
+          type: array
+          items:
+            type: object
+            properties:
+              areaId:
+                type: string
+                format: uuid
+                nullable: true
+                example: "957e99b8-a6d0-4dfa-825d-fd72051defd2"
+              areaName:
+                type: string
+                nullable: true
+                example: "Culoar Exterior"
+              timeInMinutes:
+                type: number
+                description: Minutes spent in the area
+                example: 472.42
+
+    DepartmentItem:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Department name
+          example: "Tehnic"
+        id:
+          type: string
+          format: uuid
+          example: "08b1971f-f22d-4e48-9ee9-fc338519a872"
+
+    WorkScheduleItem:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Program 08:00 - 12:00"
+        id:
+          type: string
+          format: uuid
+          example: "420fd338-2cf6-4c3a-8012-133537c241d5"
+        startMinute:
+          type: integer
+          description: Start time in minutes since midnight (0 if flexible)
+          example: 480
+        endMinute:
+          type: integer
+          description: End time in minutes since midnight (0 if flexible)
+          example: 720
+        breakInMinutes:
+          type: integer
+          description: Break time in minutes
+          example: 30
+        isFlexibile:
+          type: boolean
+          example: false
+        maxFlexibleTimeInMinutes:
+          type: integer
+          description: Max worktime in minutes for flexible schedules
+          example: 0
+
+    RFIDCardItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "19d4c715-57d1-4eef-bb76-5544a85bedda"
+        cardSerial:
+          type: string
+          description: Card serial in hex
+          example: "123ABC"
+        cardSerialDecimal:
+          type: string
+          description: Card serial in decimal
+          example: "1194684"
+        firstName:
+          type: string
+          example: "Popescu"
+        lastName:
+          type: string
+          example: "Maria"
+        departmentId:
+          type: string
+          format: uuid
+          nullable: true
+        departmentName:
+          type: string
+          nullable: true
+        scheduleId:
+          type: string
+          format: uuid
+          nullable: true
+        schedulerName:
+          type: string
+          nullable: true
+        overnight:
+          type: boolean
+        weekends:
+          type: boolean
+        suspended:
+          type: boolean
+        email:
+          type: string
+          nullable: true
+        birthDate:
+          type: string
+          format: date-time
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        job:
+          type: string
+          nullable: true
+        mark:
+          type: string
+          nullable: true
+        hiredDate:
+          type: string
+          format: date-time
+          nullable: true
+        ssn:
+          type: string
+          nullable: true
+          description: Government-issued personal number (CNP)
+        isMale:
+          type: boolean
+        contractDetails:
+          type: string
+          nullable: true
+
+    RFIDCreateUpdateRequest:
+      type: object
+      required: [firstName, lastName, overnight, weekends, isMale]
+      properties:
+        cardSerialDecimal:
+          type: string
+          description: Decimal RFID card code
+          example: "5674"
+        firstName:
+          type: string
+          example: "Ion"
+        lastName:
+          type: string
+          example: "Popescu"
+        departmentId:
+          type: string
+          format: uuid
+          nullable: true
+        scheduleId:
+          type: string
+          format: uuid
+          nullable: true
+        overnight:
+          type: boolean
+          example: false
+        weekends:
+          type: boolean
+          example: false
+        email:
+          type: string
+          nullable: true
+          example: "popescu.ion@yahoo.com"
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          example: "1989-01-01"
+        address:
+          type: string
+          nullable: true
+          example: "Strada Parcului Nr. 10, Iasi"
+        phone:
+          type: string
+          nullable: true
+          example: "0766212278"
+        job:
+          type: string
+          nullable: true
+          example: "Accountant"
+        mark:
+          type: string
+          nullable: true
+          description: Must be unique
+          example: "221A"
+        hiredDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2020-01-01"
+        ssn:
+          type: string
+          nullable: true
+          description: Government-issued personal number (CNP)
+          example: "6020117016610"
+        isMale:
+          type: boolean
+          example: false
+        contractDetails:
+          type: string
+          nullable: true
+          example: "213"
+
+    RFIDAccessItem:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2018-01-01T12:00:00"
+        end:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2018-12-20T10:00:00"
+        codeId:
+          type: string
+          format: uuid
+          example: "ca047394-2086-4cf2-a0ed-32fb5328e8d9"
+        hexCode:
+          type: string
+          example: "0010E1"
+        deviceId:
+          type: string
+          format: uuid
+          example: "ffbe75ab-381c-496b-a2d1-985e55d7f1dc"
+
+    EmployeeItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "19d4c715-57d1-4eef-bb76-5544a85bedda"
+        cardSerial:
+          type: string
+          example: "123ABC"
+        cardSerialDecimal:
+          type: string
+          example: "1194684"
+        firstName:
+          type: string
+          example: "Popescu"
+        lastName:
+          type: string
+          example: "Maria"
+        departmentId:
+          type: string
+          format: uuid
+          nullable: true
+        departmentName:
+          type: string
+          nullable: true
+        scheduleId:
+          type: string
+          format: uuid
+          nullable: true
+        scheduleName:
+          type: string
+          nullable: true
+        overnight:
+          type: boolean
+        weekends:
+          type: boolean
+        suspended:
+          type: boolean
+        suspendedTime:
+          type: string
+          format: date-time
+          nullable: true
+        creationTime:
+          type: string
+          format: date-time
+        passCount:
+          type: integer
+          nullable: true
+        passCountRemaining:
+          type: integer
+          nullable: true
+        lastPassCountTimestamp:
+          type: string
+          format: date-time
+          nullable: true
+        excludeFromITMReport:
+          type: boolean
+        maxWeekTelework:
+          type: integer
+          nullable: true
+        maxMonthTelework:
+          type: integer
+          nullable: true
+        mobilePermission:
+          type: boolean
+        desktopTrackPermission:
+          type: boolean
+        alterShiftsPermission:
+          type: boolean
+        itmDetailedPermission:
+          type: boolean
+        vacationRequestPermission:
+          type: boolean
+        vacationRequestApprovePermission:
+          type: boolean
+        email:
+          type: string
+          nullable: true
+        personalEmail:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        job:
+          type: string
+          nullable: true
+        corJobId:
+          type: string
+          nullable: true
+          description: COR job code
+        mark:
+          type: string
+          nullable: true
+        hiredDate:
+          type: string
+          format: date-time
+          nullable: true
+        ssn:
+          type: string
+          nullable: true
+          description: Government-issued personal number (CNP)
+        isMale:
+          type: boolean
+        contractDetails:
+          type: string
+          nullable: true
+
+    EmployeeDetailItem:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeItem'
+        - type: object
+          properties:
+            idType:
+              type: string
+              description: ID document type
+              example: "CarteIdentitate"
+            idNumber:
+              type: string
+              nullable: true
+              example: "BV 112255"
+            idExpirationDate:
+              type: string
+              format: date-time
+              nullable: true
+            idProvider:
+              type: string
+              nullable: true
+              example: "SPCLEP S5 Ploiesti"
+            idAddress:
+              type: string
+              nullable: true
+              example: "str Parcului nr 10, Iasi"
+            residenceAddress:
+              type: string
+              nullable: true
+              example: "str Oituz nr 5, Ploiesti"
+            vacationDaysPerYear:
+              type: integer
+              nullable: true
+              example: 21
+            vacationDaysRemaining:
+              type: integer
+              nullable: true
+              example: 7
+            vacationDaysReported:
+              type: integer
+              nullable: true
+              example: 0
+            vacationDaysReportedInitial:
+              type: integer
+              nullable: true
+              example: 1
+
+    EmployeeCreateUpdateRequest:
+      type: object
+      required: [firstName, lastName, overnight, weekends, isMale]
+      properties:
+        cardSerialDecimal:
+          type: string
+          nullable: true
+          example: "1194684"
+        firstName:
+          type: string
+          example: "Ion"
+        lastName:
+          type: string
+          example: "Popescu"
+        departmentId:
+          type: string
+          format: uuid
+          nullable: true
+        scheduleId:
+          type: string
+          format: uuid
+          nullable: true
+        overnight:
+          type: boolean
+          example: false
+        weekends:
+          type: boolean
+          example: false
+        email:
+          type: string
+          nullable: true
+          example: "popescu.ion@yahoo.com"
+        personalEmail:
+          type: string
+          nullable: true
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          example: "1989-01-01"
+        address:
+          type: string
+          nullable: true
+          example: "Strada Parcului Nr. 10, Iasi"
+        phone:
+          type: string
+          nullable: true
+          example: "0766212278"
+        job:
+          type: string
+          nullable: true
+          example: "Accountant"
+        corJobId:
+          type: string
+          nullable: true
+          description: COR job code
+        mark:
+          type: string
+          nullable: true
+          description: Must be unique
+          example: "221A"
+        hiredDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2020-01-01"
+        ssn:
+          type: string
+          nullable: true
+          description: Government-issued personal number (CNP)
+          example: "6020117016610"
+        isMale:
+          type: boolean
+          example: true
+        contractDetails:
+          type: string
+          nullable: true
+          example: "213"
+        excludeFromITMReport:
+          type: boolean
+          example: false
+        maxWeekTelework:
+          type: integer
+          nullable: true
+        maxMonthTelework:
+          type: integer
+          nullable: true
+        mobilePermission:
+          type: boolean
+          example: false
+        desktopTrackPermission:
+          type: boolean
+          example: false
+        alterShiftsPermission:
+          type: boolean
+          example: false
+        itmDetailedPermission:
+          type: boolean
+          example: false
+        vacationRequestPermission:
+          type: boolean
+          example: false
+        vacationRequestApprovePermission:
+          type: boolean
+          example: false
+        idType:
+          type: string
+          nullable: true
+          description: "ID document type (e.g. CarteIdentitate)"
+        idNumber:
+          type: string
+          nullable: true
+        idExpirationDate:
+          type: string
+          format: date
+          nullable: true
+        idProvider:
+          type: string
+          nullable: true
+        idAddress:
+          type: string
+          nullable: true
+        residenceAddress:
+          type: string
+          nullable: true
+        vacationDaysPerYear:
+          type: integer
+          nullable: true
+          example: 21
+        vacationDaysReported:
+          type: integer
+          nullable: true
+        vacationDaysReportedInitial:
+          type: integer
+          nullable: true
+
+    VacationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "19d4c715-57d1-4eef-bb76-5544a85bedda"
+        cardId:
+          type: string
+          format: uuid
+          description: Associated employee ID
+          example: "29d4c715-57d1-4eef-bb76-5544a85bedda"
+        startDate:
+          type: string
+          format: date-time
+          example: "2018-01-01T00:00:00"
+        endDate:
+          type: string
+          format: date-time
+          example: "2018-01-15T00:00:00"
+        type:
+          type: integer
+          description: |
+            Vacation type ID (1-43):
+            1=CO, 2=CM01, 3=RS, 4=OC, 5=CCC, 6=CFP, 7=SL, 8=AM,
+            9=D, 10=CS, 12=ES, 13=ZL, 14=CO75, 15=ST75, 16=CST,
+            17=INV, 18=CM02, 20=CM03, 21=CM04, 22=CM05, 23=CM06,
+            24=CM07, 25=CM08, 26=CM09, 27=CM10, 28=CM11, 29=CM12,
+            30=CM13, 31=CM14, 32=CM15, 33=CM51, 34=CMAZ, 35=CM17,
+            36=CM91, 37=CM92, 38=PrezM, 39=CI, 40=COS, 41=AR, 42=V, 43=DS
+        observations:
+          type: string
+          nullable: true
+          description: Vacation comments
+
+    VacationCreateUpdateRequest:
+      type: object
+      required: [cardId, startDate, endDate, type]
+      properties:
+        cardId:
+          type: string
+          format: uuid
+          description: Employee ID
+        startDate:
+          type: string
+          format: date-time
+          example: "2018-01-01T00:00:00"
+        endDate:
+          type: string
+          format: date-time
+          example: "2018-01-15T00:00:00"
+        type:
+          type: integer
+          description: Vacation type ID
+          example: 1
+        observations:
+          type: string
+          nullable: true
+
+    VacationRequestItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+        employeeName:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        type:
+          type: integer
+        typeName:
+          type: string
+        status:
+          type: string
+          description: "Request status (Pending, Approved, Denied)"
+        observations:
+          type: string
+          nullable: true
+        denyReason:
+          type: string
+          nullable: true
+
+    AreaItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Culoar Exterior"
+        deviceId:
+          type: string
+          format: uuid
+          nullable: true
+        deviceName:
+          type: string
+          nullable: true
+
+    DocumentCreateRequest:
+      type: object
+      required: [date, description, signAuthType, employeesIds, files]
+      properties:
+        date:
+          type: string
+          format: date-time
+          description: Document date
+          example: "2024-01-15T00:00:00"
+        number:
+          type: string
+          nullable: true
+          description: Document number
+        description:
+          type: string
+          description: Document description
+          example: "Contract de munca"
+        companyName:
+          type: string
+          nullable: true
+          description: Company name on the document
+        signAuthType:
+          type: integer
+          description: |
+            Authentication type for signing:
+            0=AdvancedDouble, 1=AdvancedEmail, 2=AdvancedSMS,
+            3=SimpleEmail, 4=SimpleSMS, 5=Simple
+          example: 3
+        employeesIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Employee IDs to sign
+          example: ["a357a164-cfdc-4355-ad80-324e67ff9d28"]
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              encodedData:
+                type: string
+                description: Base64-encoded PDF file (mandatory if no templateId)
+              fileName:
+                type: string
+                description: File name
+              templateId:
+                type: string
+                nullable: true
+                description: Template file ID (null if not a template)
+              signByCurrentUser:
+                type: boolean
+                description: Whether the current user should also sign
+
+    DocumentItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        number:
+          type: string
+          nullable: true
+        description:
+          type: string
+        companyName:
+          type: string
+          nullable: true
+        signAuthType:
+          type: integer
+        status:
+          type: integer
+          description: |
+            Document status:
+            0=Not Signed, 1=Signed by employee(s), 2=Signed by manager,
+            3=Signed, 4=Cancelled, 5=Expired, 6=Rejected, 7=Error
+        statusName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        employees:
+          type: array
+          items:
+            type: object
+            properties:
+              employeeId:
+                type: string
+                format: uuid
+              employeeName:
+                type: string
+              signed:
+                type: boolean
+              signedAt:
+                type: string
+                format: date-time
+                nullable: true
